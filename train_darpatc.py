@@ -65,7 +65,9 @@ p_type = ("lora")
 # 加载模型
 model = AutoModelForCausalLM.from_pretrained(model_name_or_path)
 tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-training_args = TrainingArguments(output_dir="test_trainer", evaluation_strategy="epoch", num_train_epochs=1, per_device_train_batch_size=1)
+# training_args = TrainingArguments(output_dir="test_trainer", evaluation_strategy="epoch", num_train_epochs=1, per_device_train_batch_size=1)
+training_args = TrainingArguments(output_dir="test_trainer", evaluation_strategy="epoch", num_train_epochs=1)
+
 # print(training_args)
 # 加载评估
 metric = evaluate.load(evalmetric_name_or_path)
@@ -74,14 +76,14 @@ metric = evaluate.load(evalmetric_name_or_path)
 if getattr(tokenizer, "pad_token_id") is None:
     print("\nlet pad_token = eos_token \n")
     tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.pad_token_id = tokenizer.eos_token_id
+#     tokenizer.pad_token_id = tokenizer.eos_token_id
 
 # tokenizer.pad_token = tokenizer.eos_token
 def tokenize_function(examples):
     # return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=490)
 
-    inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True, max_length=300)
-    targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True, max_length=300)
+    inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True, max_length=100) #1100
+    targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True, max_length=100)
     outputs = {
         "input_ids": inputs["input_ids"],
         "attention_mask": inputs["attention_mask"],
