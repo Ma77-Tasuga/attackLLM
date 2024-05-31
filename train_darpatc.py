@@ -71,9 +71,6 @@ if __name__ == "__main__":
     model_name_or_path = './TinyLlama-1.1B-intermediate-step-1431k-3T'
     evalmetric_name_or_path = './eval_accuracy/accuracy.py'
 
-    # 微调策略
-    p_type = ("lora")
-
     # 加载模型
     model = AutoModelForCausalLM.from_pretrained(model_name_or_path)
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
