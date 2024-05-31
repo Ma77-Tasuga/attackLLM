@@ -9,9 +9,9 @@ from peft import LoraConfig, TaskType, get_peft_model
 
 def tokenize_function(examples):
     inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True,
-                       max_length=10)  #1100
+                       max_length=400)  #50:1100 30:600 20:400
     targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True,
-                        max_length=10)
+                        max_length=400)
     outputs = {
         "input_ids": inputs["input_ids"],
         "attention_mask": inputs["attention_mask"],
@@ -76,11 +76,16 @@ if __name__ == "__main__":
     # 加载模型
     model = AutoModelForCausalLM.from_pretrained(model_name_or_path)
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-    # training_args = TrainingArguments(output_dir="test_trainer", evaluation_strategy="epoch", num_train_epochs=1, per_device_train_batch_size=1)
     training_args = TrainingArguments(output_dir="test_trainer",
                                       evaluation_strategy="epoch",
                                       num_train_epochs=1,
+                                      per_device_train_batch_size=1,
+                                      per_device_eval_batch_size=1,
                                       )
+    # training_args = TrainingArguments(output_dir="test_trainer",
+    #                                   evaluation_strategy="epoch",
+    #                                   num_train_epochs=1,
+    #                                   )
 
     print(training_args)
     # 加载评估
@@ -100,10 +105,14 @@ if __name__ == "__main__":
 
     # print(tokenized_datasets.shape)
     # print(tokenized_datasets.data[50:100])
+    # print(tokenized_datasets['attention_mask'][50:60])
 
     small_train_dataset = tokenized_datasets.select(range(test_size, data_size))
     small_eval_dataset = tokenized_datasets.select(range(test_size))
     # print(small_train_dataset[50:100])
+    # print(small_train_dataset.shape)
+    # print(small_eval_dataset.shape)
+
 
     # 训练器配置
     peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
@@ -120,4 +129,4 @@ if __name__ == "__main__":
     )
 
     trainer.train()
-    # model.save_pretrained("output_dir")
+    model.save_pretrained("output_lora_model")
