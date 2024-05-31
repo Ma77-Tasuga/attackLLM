@@ -31,6 +31,7 @@ def compute_metrics(eval_pred):
 if __name__ == "__main__":
 
     split_ratio = 0.2
+    smaller_retio = 0.1
 
     datasets_list = ["cadets", 'fivedirections', 'theia', 'trace']
 
@@ -58,7 +59,7 @@ if __name__ == "__main__":
     dataset = Dataset.from_list(data)
     dataset = dataset.shuffle(seed=42)
     # print(dataset[50:100])
-    data_size = dataset.shape[0]
+    data_size = int(dataset.shape[0] * smaller_retio)
     test_size = int(data_size * split_ratio)
 
     # test_dataset = dataset.select(indices=range(test_size))
@@ -110,8 +111,8 @@ if __name__ == "__main__":
     small_train_dataset = tokenized_datasets.select(range(test_size, data_size))
     small_eval_dataset = tokenized_datasets.select(range(test_size))
     # print(small_train_dataset[50:100])
-    # print(small_train_dataset.shape)
-    # print(small_eval_dataset.shape)
+    print(small_train_dataset.shape)
+    print(small_eval_dataset.shape)
 
 
     # 训练器配置
