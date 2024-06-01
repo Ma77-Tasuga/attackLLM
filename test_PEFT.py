@@ -36,7 +36,7 @@ dataset = load_dataset(dataset_name_or_path)
 model = AutoModelForCausalLM.from_pretrained(model_name_or_path)
 # model = AutoModelForSequenceClassification.from_pretrained(model_name_or_path, num_labels=5)
 tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-training_args = TrainingArguments(output_dir="test_trainer", evaluation_strategy="epoch", num_train_epochs=3)
+training_args = TrainingArguments(output_dir="check_point", evaluation_strategy="epoch", num_train_epochs=3)
 print(training_args)
 # 加载评估
 metric = evaluate.load(evalmetric_name_or_path)

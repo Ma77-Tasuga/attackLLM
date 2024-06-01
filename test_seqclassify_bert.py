@@ -11,7 +11,7 @@ model = AutoModelForSequenceClassification.from_pretrained("./bert-base-uncased"
 dataset = load_dataset("./yelp_review_full/data")
 # print(dataset["train"][100])
 tokenizer = AutoTokenizer.from_pretrained("./bert-base-uncased")
-training_args = TrainingArguments(output_dir="test_trainer", evaluation_strategy="epoch")
+training_args = TrainingArguments(output_dir="check_point", evaluation_strategy="epoch")
 training_args.num_train_epochs=5.0
 print(training_args)
 

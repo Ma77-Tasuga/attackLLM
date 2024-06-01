@@ -9,9 +9,9 @@ from peft import LoraConfig, TaskType, get_peft_model
 
 def tokenize_function(examples):
     inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True,
-                       max_length=400)  #50:1100 30:600 20:400
+                       max_length=1100)  #50:1100 30:600 20:400
     targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True,
-                        max_length=400)
+                        max_length=1100)
     outputs = {
         "input_ids": inputs["input_ids"],
         "attention_mask": inputs["attention_mask"],
@@ -31,7 +31,7 @@ def compute_metrics(eval_pred):
 if __name__ == "__main__":
 
     split_ratio = 0.2
-    smaller_retio = 0.1
+    smaller_retio = 1  # 1 use full dataset
 
     datasets_list = ["cadets", 'fivedirections', 'theia', 'trace']
 
@@ -74,13 +74,13 @@ if __name__ == "__main__":
     # 加载模型
     model = AutoModelForCausalLM.from_pretrained(model_name_or_path)
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-    training_args = TrainingArguments(output_dir="test_trainer",
+    training_args = TrainingArguments(output_dir="check_point",
                                       evaluation_strategy="epoch",
                                       num_train_epochs=1,
                                       per_device_train_batch_size=1,
                                       per_device_eval_batch_size=1,
                                       )
-    # training_args = TrainingArguments(output_dir="test_trainer",
+    # training_args = TrainingArguments(output_dir="check_point",
     #                                   evaluation_strategy="epoch",
     #                                   num_train_epochs=1,
     #                                   )
@@ -122,8 +122,8 @@ if __name__ == "__main__":
         model=model,
         args=training_args,
         train_dataset=small_train_dataset,
-        eval_dataset=small_eval_dataset,
-        compute_metrics=compute_metrics,
+        # eval_dataset=small_eval_dataset,
+        # compute_metrics=compute_metrics,
     )
 
     trainer.train()
