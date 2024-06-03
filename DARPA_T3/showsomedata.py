@@ -2,7 +2,7 @@ import csv
 import os
 
 num_show = 1000
-file_path = './pure_dataset/cadets_test_attack.txt'
+file_path = './dataset_json/train/cadets_attack.json'
 def show(data):
     count = 0
     for d in data:
@@ -24,7 +24,7 @@ def show(data):
 with open(file_path,'r') as f:
     lines = f.readlines()
     print(len(lines))
-    # show(file)
+    show(lines)
     # cnt = 0
     # for d in file:
     #     cnt +=1

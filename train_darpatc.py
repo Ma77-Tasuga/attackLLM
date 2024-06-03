@@ -1,17 +1,28 @@
 import json
 import os
+import random
+
+import torch
 from datasets import Dataset
-from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer, AutoModelForSeq2SeqLM
 import evaluate
 import numpy as np
 from peft import LoraConfig, TaskType, get_peft_model
 
-
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 def tokenize_function(examples):
     inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True,
-                       max_length=1100)  #50:1100 30:600 20:400
+                       max_length=512)  #50:1100 30:600 20:400
     targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True,
-                        max_length=1100)
+                        max_length=512)
+    # inputs = tokenizer(examples["prompt"], return_tensors="pt", truncation=True,
+    #                    max_length=400)  #50:1100 30:600 20:400
+    # targets = tokenizer(examples["response"], return_tensors="pt", truncation=True,
+    #                     max_length=400)
     outputs = {
         "input_ids": inputs["input_ids"],
         "attention_mask": inputs["attention_mask"],
@@ -29,7 +40,7 @@ def compute_metrics(eval_pred):
 
 
 if __name__ == "__main__":
-
+    set_seed(42)
     split_ratio = 0.2
     smaller_retio = 1  # 1 use full dataset
 
@@ -55,7 +66,15 @@ if __name__ == "__main__":
             else:
                 print("error: wrong filename \n")
 
-    data = data_attack + data_benign
+    if len(data_attack) <= len(data_benign):
+        data_benign_sampled = random.sample(data_benign, len(data_attack))
+    else:
+        print('error')
+
+    # print(len(data_attack), len(data_benign))
+
+    data = data_attack + data_benign_sampled
+    # print(len(data))
     dataset = Dataset.from_list(data)
     dataset = dataset.shuffle(seed=42)
     # print(dataset[50:100])
@@ -68,16 +87,18 @@ if __name__ == "__main__":
     """
         训练模型
     """
-    model_name_or_path = './TinyLlama-1.1B-intermediate-step-1431k-3T'
+    # model_name_or_path = './TinyLlama-1.1B-intermediate-step-1431k-3T'
+    model_name_or_path = './T5-small'
     evalmetric_name_or_path = './eval_accuracy/accuracy.py'
 
     # 加载模型
-    model = AutoModelForCausalLM.from_pretrained(model_name_or_path)
+    # model = AutoModelForCausalLM.from_pretrained(model_name_or_path)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name_or_path)
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     training_args = TrainingArguments(output_dir="check_point",
                                       evaluation_strategy="epoch",
-                                      num_train_epochs=1,
-                                      per_device_train_batch_size=1,
+                                      num_train_epochs=3,
+                                      # per_device_train_batch_size=1,
                                       per_device_eval_batch_size=1,
                                       )
     # training_args = TrainingArguments(output_dir="check_point",
@@ -85,7 +106,7 @@ if __name__ == "__main__":
     #                                   num_train_epochs=1,
     #                                   )
 
-    print(training_args)
+    # print(training_args)
     # 加载评估
     metric = evaluate.load(evalmetric_name_or_path)
     # print(model.config)
@@ -102,15 +123,16 @@ if __name__ == "__main__":
     tokenized_datasets = tokenized_datasets.rename_column('target_attention_mask', 'decoder_attention_mask')
 
     # print(tokenized_datasets.shape)
-    # print(tokenized_datasets.data[50:100])
-    # print(tokenized_datasets['attention_mask'][50:60])
+    # print(tokenized_datasets.data[50:60])
+    # print(tokenized_datasets['labels'][50:60])
+    print(tokenized_datasets['attention_mask'][50:60])
+    # print(tokenized_datasets['decoder_attention_mask'][50:60])
 
     small_train_dataset = tokenized_datasets.select(range(test_size, data_size))
     small_eval_dataset = tokenized_datasets.select(range(test_size))
     # print(small_train_dataset[50:100])
     print(small_train_dataset.shape)
     print(small_eval_dataset.shape)
-
 
     # 训练器配置
     peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
@@ -122,9 +144,9 @@ if __name__ == "__main__":
         model=model,
         args=training_args,
         train_dataset=small_train_dataset,
-        # eval_dataset=small_eval_dataset,
-        # compute_metrics=compute_metrics,
+        eval_dataset=small_eval_dataset,
+        compute_metrics=compute_metrics,
     )
 
-    trainer.train()
-    model.save_pretrained("output_lora_model")
+    # trainer.train()
+    # model.save_pretrained("output_lora_model")

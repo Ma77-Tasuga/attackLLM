@@ -44,7 +44,8 @@ for filename in os.listdir(folder):
                 prompt = form_prompt(prompt_list)
                 prompt_dic = {
                     'prompt': prompt + '.',
-                    'response': attack_or_benign + '.'
+                    # 'response': prompt + '.' + ' It is '+attack_or_benign + '.'
+                    'response': 'It is ' + attack_or_benign + '.'
                 }
 
                 prompt_dic_list.append(prompt_dic)
