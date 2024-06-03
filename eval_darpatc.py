@@ -16,7 +16,6 @@ tokenizer = AutoTokenizer.from_pretrained("./T5-small")
 model = model.to("cuda")
 model.eval()
 
-# TODO: 改改这下面的
 datasets_list = ["cadets", 'fivedirections', 'theia', 'trace']
 
 chosed_dataset = 'cadets'
