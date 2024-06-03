@@ -8,9 +8,9 @@ import torch
 
 
 model = AutoModelForSeq2SeqLM.from_pretrained("./T5-small")
-lora_config = PeftConfig.from_pretrained("./output_lora_model/T5_outofmem_cp")
+lora_config = PeftConfig.from_pretrained("./output_lora_model/T5_ep10_097_0603")
 
-model = PeftModel.from_pretrained(model,"./output_lora_model/T5_outofmem_cp")
+model = PeftModel.from_pretrained(model,"./output_lora_model/T5_ep10_097_0603")
 tokenizer = AutoTokenizer.from_pretrained("./T5-small")
 
 model = model.to("cuda")
@@ -41,7 +41,7 @@ print("num of data_attack is: " + str(len(data_attack)))
 print("num of data_benign is: " + str(len(data_benign)))
 # print(data_attack[50:51])
 # print(data_benign[50:51])
-prompt = data_attack[15000]['prompt']
+prompt = data_attack[50]['prompt']
 # prompt = prompt[:int(len(prompt)/2)]
 # data_size = int(dataset.shape[0] * smaller_retio)
 # test_size = int(data_size * split_ratio)
@@ -52,9 +52,9 @@ if getattr(tokenizer, "pad_token_id") is None:
     tokenizer.pad_token = tokenizer.eos_token
 
 inputs = tokenizer(prompt, return_tensors="pt", padding="max_length", truncation=True,
-                   max_length=500)
-print(inputs)
+                   max_length=512)
+# print(inputs)
 #
-outputs = model.generate(input_ids=inputs["input_ids"].to("cuda"))
+outputs = model.generate(input_ids=inputs["input_ids"].to("cuda"), max_length = 10)
 print(outputs)
 print(tokenizer.batch_decode(outputs.detach().cpu().numpy(), skip_special_tokens=True)[0])
