@@ -10,24 +10,6 @@ import torch
 from sklearn.metrics import accuracy_score
 
 
-# def tokenize_function(examples):
-#     inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True,
-#                        max_length=512)  #50:1100 30:600 20:400
-#
-#     batch_size = len(examples["prompt"])
-#
-#     # labels = [1 for _ in range(batch_size)]
-#     labels = [1] * batch_size
-#
-#
-#     outputs = {
-#         "input_ids": inputs["input_ids"],
-#         "attention_mask": inputs["attention_mask"],
-#         "labels": labels,
-#     }
-#
-#     return outputs
-
 def tokenize_function(examples):
     inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True,
                        max_length=512)  #50:1100 30:600 20:400
@@ -43,34 +25,47 @@ def tokenize_function(examples):
 
     return outputs
 def compute_metrics(eval_pred):
-    print('-----------------------\n')
-
-    logits, labels = eval_pred
-    labels = [1]*len(logits[0])
-    # print(logits[0].shape)
-    # print(len(logits))
-    # print(labels)
-    predictions = np.argmax(logits[0], axis=-1)
     pred_labels = []
-    for i in range(len(predictions)):
+    true_labels = []
+    logits, labels = eval_pred
+    batch_size = len(labels)
+    print(labels.shape)
+    for i in range(batch_size):
+        if 3211 in labels[i]:
+            true_labels.append(1)
+        else:
+            true_labels.append(0)
+
+    predictions = np.argmax(logits[0], axis=-1)
+
+    for i in range(batch_size):
         if 3211 in predictions[i]: # 31144-benign 3211-attack
             pred_labels.append(1)
         else:
             pred_labels.append(0)
 
+    y_true = np.array(true_labels)
+    y_pred = np.array(pred_labels)
 
-    # print(predictions)
-    # print(predictions.shape)
-    score = accuracy_score(pred_labels,labels)
-    print(score)
+    TP = np.sum((y_true == 1) & (y_pred == 1))
+    TN = np.sum((y_true == 0) & (y_pred == 0))
+    FP = np.sum((y_true == 0) & (y_pred == 1))
+    FN = np.sum((y_true == 1) & (y_pred == 0))
+
+    acc = (TP + TN) / (TP + TN + FP + FN)
+
     return {
-        'acc':score,
-        'bcc':score-0.5
+        'acc':acc,
+        "TP": TP,
+        'TN': TN,
+        'FP': FP,
+        'FN': FN
     }
 
 if __name__ == '__main__':
     set_seed(42)
-    smeller_ratio = 0.01
+    smaller_ratio = 1
+    shards_size = 2000
 
     model = AutoModelForSeq2SeqLM.from_pretrained("./T5-small")
     lora_config = PeftConfig.from_pretrained("./output_lora_model/T5_fulldata_50ep_084_0603")
@@ -110,11 +105,19 @@ if __name__ == '__main__':
         data_attack_all += data_attack
         data_benign_all += data_benign
 
-    print("num of data_attack is: " + str(len(data_attack_all)))
-    print("num of data_benign is: " + str(len(data_benign_all)))
+    # print("num of data_attack is: " + str(len(data_attack_all)))
+    # print("num of data_benign is: " + str(len(data_benign_all)))
 
-    dataset_attack = Dataset.from_list(data_attack_all)
-    dataset_benign = Dataset.from_list(data_benign_all)
+    # dataset_attack = Dataset.from_list(data_attack_all)
+    # dataset_benign = Dataset.from_list(data_benign_all)
+
+    # dataset_attack = dataset_attack.select(range(int(len(dataset_attack)*smaller_ratio)))
+    # dataset_benign = dataset_benign.select(range(int(len(dataset_benign)*smaller_ratio)))
+
+    data_all = data_attack_all+data_benign_all
+    dataset_all = Dataset.from_list(data_all).shuffle(seed=42)
+    dataset_all = dataset_all.select(range(int(len(dataset_all)*smaller_ratio)))
+    print("dataset shape is: ",dataset_all.shape)
 
     # print(data_attack[50:51])
     # print(data_benign[50:51])
@@ -128,37 +131,71 @@ if __name__ == '__main__':
         print("\nlet pad_token = eos_token \n")
         tokenizer.pad_token = tokenizer.eos_token
 
-    tokenized_attacks = dataset_attack.map(tokenize_function, batched=True)
+    # tokenized_attacks = dataset_attack.map(tokenize_function, batched=True)
+    # tokenized_benigns = dataset_benign.map(tokenize_function, batched=True)
+    tokenized_dataset = dataset_all.map(tokenize_function, batched=True)
+
     # tokenized_attacks = tokenized_attacks.remove_columns(['prompt', 'response'])
+    # tokenized_attacks = tokenized_attacks.rename_column('target_ids', 'labels')
+    # tokenized_attacks = tokenized_attacks.rename_column('target_attention_mask', 'decoder_attention_mask')
+    # tokenized_benigns = tokenized_benigns.remove_columns(['prompt', 'response'])
+    # tokenized_benigns = tokenized_benigns.rename_column('target_ids', 'labels')
+    # tokenized_benigns = tokenized_benigns.rename_column('target_attention_mask', 'decoder_attention_mask')
 
-    tokenized_attacks = tokenized_attacks.remove_columns(['prompt', 'response'])
-    tokenized_attacks = tokenized_attacks.rename_column('target_ids', 'labels')
-    tokenized_attacks = tokenized_attacks.rename_column('target_attention_mask', 'decoder_attention_mask')
-
-    # results = generator(dataset_attack["prompt"], max_length=10)
-    # print(results)
-
-    # tokenized_attacks = tokenizer(dataset_attack["prompt"], return_tensors="pt", padding="max_length", truncation=True,
-    #                    max_length=512)  #50:1100 30:600 20:400)
+    tokenized_dataset = tokenized_dataset.remove_columns(['prompt', 'response'])
+    tokenized_dataset = tokenized_dataset.rename_column('target_ids', 'labels')
+    tokenized_dataset = tokenized_dataset.rename_column('target_attention_mask', 'decoder_attention_mask')
 
 
-    # print(tokenized_attacks[50])
 
-    # print(inputs)
-    #
-    # outputs = model.generate(input_ids=tokenized_attacks.input_ids.to("cuda:0"), attention_mask = tokenized_attacks.attention_mask.to("cuda:0"), max_length=10)
-    # print(outputs)
-    # print(outputs.shape)
-    # print(tokenizer.batch_decode(outputs.detach().cpu().numpy(), skip_special_tokens=True)[0])
+    cnt = 0
+    print(len(tokenized_dataset['labels']))
+    num_data = len(tokenized_dataset['labels'])
+    num_left = int(num_data%shards_size)
+    print('total loop:'+str(int(num_data/shards_size)))
+    TP = 0
+    TN = 0
+    FP = 0
+    FN = 0
+    for i in range(int(num_data/shards_size)):
+        input_data = tokenized_dataset.select(range(shards_size*i,shards_size*(i+1)))
 
-    tokenized_attacks = tokenized_attacks.select(range(int(len(tokenized_attacks)*smeller_ratio)))
+        trainer = Trainer(
+            model=model,  # 要微调的模型
+            args=training_args,  # 训练参数
+            # eval_dataset=tokenized_attacks,  # 验证数据集
+            eval_dataset=input_data,
+            compute_metrics=compute_metrics  # 计算评估指标的函数
+            )
 
+        result = trainer.evaluate()
+        TP += int(result['eval_TP'])
+        TN += int(result['eval_TN'])
+        FP += int(result['eval_FP'])
+        FN += int(result['eval_FN'])
+        print(result)
+
+    input_data = tokenized_dataset.select(range(num_data-num_left, num_data))
     trainer = Trainer(
         model=model,  # 要微调的模型
         args=training_args,  # 训练参数
-        # train_dataset=dataset['train'],  # 训练数据集
-        eval_dataset=tokenized_attacks,  # 验证数据集
+        # eval_dataset=tokenized_attacks,  # 验证数据集
+        eval_dataset=input_data,
         compute_metrics=compute_metrics  # 计算评估指标的函数
     )
+
     result = trainer.evaluate()
+    TP += int(result['eval_TP'])
+    TN += int(result['eval_TN'])
+    FP += int(result['eval_FP'])
+    FN += int(result['eval_FN'])
     print(result)
+    print(f'final result: TP={TP}, TN={TN}, FP={FP}, FN={FN}\n')
+    acc = (TP + TN) / (TP + TN + FP + FN)
+    rec = TP / (TP + FN) if (TP + FN) > 0 else 0
+    pre = TP / (TP + FP) if (TP + FP) > 0 else 0
+    f1 = 2 * (pre * rec) / (pre + rec) if (pre + rec) > 0 else 0
+    print(f'final matric: acc={acc}, recall={rec}, precision={pre}, f1-score={f1}\n')
+    with open('./logbuffer.txt','w') as f:
+        f.write(f'final result: TP={TP}, TN={TN}, FP={FP}, FN={FN}\n')
+        f.write(f'final matric: acc={acc}, recall={rec}, precision={pre}, f1-score={f1}\n')
