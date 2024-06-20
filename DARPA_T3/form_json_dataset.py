@@ -6,11 +6,32 @@ data_list = ['cadets', 'fivedirections', 'theia', 'trace']
 check_num = 20000
 prompt_list_size = 20
 
-
+do_full_abstract = True
 def form_prompt(prompt_list):
     prompt = ', '.join(prompt_list)
 
     return prompt
+
+
+if do_full_abstract:
+    """ load label/feature map """
+    label_map = {}
+    feature_map = {}
+    with open('./flag/label_map.txt','r') as f:
+        lines = f.readlines()
+        for line in lines:
+            key = line.strip().split(' ')[0]
+            val = line.strip().split(' ')[1]
+            label_map[key] = val
+    with open('./flag/feature_map.txt', 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            key = line.strip().split(' ')[0]
+            val = line.strip().split(' ')[1]
+            feature_map[key] = val
+
+    print(len(label_map))
+    print(len(feature_map))
 
 
 for filename in os.listdir(folder):
@@ -36,7 +57,10 @@ for filename in os.listdir(folder):
         cnt = 0
         for line in lines:
             line_list = line.strip().split('\t')
-            prompt_list.append(line_list[1] + ' ' + line_list[4] + ' ' + line_list[3])
+            if do_full_abstract:
+                prompt_list.append(label_map[line_list[1]] + ' '+ feature_map[line_list[4]]+ ' '+label_map[line_list[3]])
+            else:
+                prompt_list.append(line_list[1] + ' ' + line_list[4] + ' ' + line_list[3])
             cnt += 1
             if cnt % prompt_list_size == 0:
                 if cnt % check_num == 0:
@@ -44,7 +68,7 @@ for filename in os.listdir(folder):
                 prompt = form_prompt(prompt_list)
                 prompt_dic = {
                     'prompt': prompt + '.',
-                    # 'response': prompt + '.' + ' It is '+attack_or_benign + '.'
+
                     'response': 'It is ' + attack_or_benign + '.'
                 }
 
