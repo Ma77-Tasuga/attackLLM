@@ -19,7 +19,7 @@ from accelerate.utils import set_seed
 
 def tokenize_function(examples):
     inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True,
-                       max_length=512)  #50:1100 30:600 20:400
+                       max_length=450)  #50:1100 30:600 20:400
     targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True,
                         max_length=10)
 

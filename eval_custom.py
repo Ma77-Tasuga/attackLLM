@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score
 
 def tokenize_function(examples):
     inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True,
-                       max_length=512)  #50:1100 30:600 20:400
+                       max_length=450)  #50:1100 30:600 20:400
     targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True,
                         max_length=10)
 
@@ -68,9 +68,9 @@ if __name__ == '__main__':
     shards_size = 2000
 
     model = AutoModelForSeq2SeqLM.from_pretrained("./T5-small")
-    lora_config = PeftConfig.from_pretrained("./output_lora_model/T5_fulldata_50ep_084_0603")
+    lora_config = PeftConfig.from_pretrained("./output_lora_model/T5_map_50ep_50len_450ml_0622")
 
-    model = PeftModel.from_pretrained(model, "./output_lora_model/T5_fulldata_50ep_084_0603")
+    model = PeftModel.from_pretrained(model, "./output_lora_model/T5_map_50ep_50len_450ml_0622")
     tokenizer = AutoTokenizer.from_pretrained("./T5-small")
 
     training_args = TrainingArguments(
@@ -196,6 +196,6 @@ if __name__ == '__main__':
     pre = TP / (TP + FP) if (TP + FP) > 0 else 0
     f1 = 2 * (pre * rec) / (pre + rec) if (pre + rec) > 0 else 0
     print(f'final matric: acc={acc}, recall={rec}, precision={pre}, f1-score={f1}\n')
-    with open('./logbuffer.txt','w') as f:
+    with open('./logbuffer.txt','a') as f:
         f.write(f'final result: TP={TP}, TN={TN}, FP={FP}, FN={FN}\n')
         f.write(f'final matric: acc={acc}, recall={rec}, precision={pre}, f1-score={f1}\n')

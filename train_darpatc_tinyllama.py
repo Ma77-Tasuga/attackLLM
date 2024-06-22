@@ -8,38 +8,20 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments,
 import evaluate
 import numpy as np
 from peft import LoraConfig, TaskType, get_peft_model
+from accelerate.utils import set_seed
 
-
-def set_seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+# def set_seed(seed):
+#     random.seed(seed)
+#     np.random.seed(seed)
+#     torch.manual_seed(seed)
+#     torch.cuda.manual_seed_all(seed)
 
 
 def tokenize_function(examples):
     inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True,
-                       max_length=512)  #50:1100 30:600 20:400
+                       max_length=450)  #50:1100 30:600 20:400
     targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True,
                         max_length=10)
-
-    # max_length = 512
-    # batch_size = len(examples["prompt"])
-    # inputs = tokenizer(examples["prompt"], return_tensors="pt", truncation=True, max_length=max_length)
-    # targets = tokenizer(examples["response"], return_tensors="pt", truncation=True, max_length=max_length)
-    # for i in range(batch_size):
-    #     input_ids = inputs["input_ids"][i]
-    #     ''''''
-    #     if len(input_ids) + 1 <= max_length:
-    #         inputs["input_ids"][i] = input_ids + [0] * (max_length - len(input_ids))
-    #         inputs["attention_mask"][i] = [1] * len(input_ids) + [0] * (max_length - len(input_ids))
-    #
-    #         inputs["labels"].append(input_ids + [tokenizer.pad_token_id] + [-100] * (max_length - len(input_ids) - 1))
-    #     else:
-    #         inputs["input_ids"][i] = input_ids[:max_length - 1] + [tokenizer.pad_token_id]
-    #         inputs["labels"].append(inputs["input_ids"][i])
-    #         inputs["attention_mask"][i] = [1] * max_length
-    #     ''''''
 
     outputs = {
         "input_ids": inputs["input_ids"],
@@ -67,36 +49,38 @@ if __name__ == "__main__":
     smaller_retio = 1  # 1 use full dataset
 
     datasets_list = ["cadets", 'fivedirections', 'theia', 'trace']
-
-    chosed_dataset = 'cadets'
+    filename_prefix_attack = '_attack.json'
+    filename_prefix_benign = '_benign.json'
+    # chosed_dataset = 'cadets'
     folder_train = './DARPA_T3/dataset_json/train'
 
-    assert chosed_dataset in datasets_list, 'unexpected dataset chosed \n'
+    # assert chosed_dataset in datasets_list, 'unexpected dataset chosed \n'
 
-    data_attack = []
-    data_benign = []
+    data = []
 
-    for filename in os.listdir(folder_train):
-        if chosed_dataset not in filename:
-            continue
+    for datasets_name in datasets_list:
+        file_path_attack = os.path.join(folder_train, datasets_name+filename_prefix_attack)
+        file_path_benign = os.path.join(folder_train, datasets_name+filename_prefix_benign)
 
-        with open(os.path.join(folder_train, filename), 'r', encoding='utf-8') as f:
-            if 'attack' in filename:
-                data_attack = json.load(f)
-            elif 'benign' in filename:
-                data_benign = json.load(f)
-            else:
-                print("error: wrong filename \n")
+        with open(file_path_attack, 'r', encoding='utf-8') as fa:
+            data_attack = json.load(fa)
+            # print(len(data_attack))
 
-    if len(data_attack) <= len(data_benign):
-        data_benign_sampled = random.sample(data_benign, len(data_attack))
-    else:
-        print('error')
+        with open(file_path_benign, 'r', encoding='utf-8') as fb:
+            data_benign = json.load(fb)
+            # print(len(data_benign))
 
-    # print(len(data_attack), len(data_benign))
+        if len(data_attack) <= len(data_benign):
+            data_benign_sampled = random.sample(data_benign, len(data_attack))
+        else:
+            print('data_attack > data_benign \n')
+            data_benign_sampled = data_benign
 
-    data = data_attack + data_benign_sampled
+        data += data_attack
+        data += data_benign_sampled
+
     # print(len(data))
+
     dataset = Dataset.from_list(data)
     dataset = dataset.shuffle(seed=42)
     # print(dataset[50:100])
@@ -119,10 +103,10 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     training_args = TrainingArguments(output_dir="check_point",
                                       evaluation_strategy="epoch",
-                                      num_train_epochs=10,
-                                      # do_eval=False,
+                                      num_train_epochs=50,
                                       per_device_train_batch_size=64,
                                       # per_device_eval_batch_size=1,
+                                      learning_rate=1e-03,
                                       )
     # training_args = TrainingArguments(output_dir="check_point",
     #                                   evaluation_strategy="epoch",

@@ -4,7 +4,7 @@ import os
 folder = './pure_dataset'
 data_list = ['cadets', 'fivedirections', 'theia', 'trace']
 check_num = 20000
-prompt_list_size = 20
+prompt_list_size = 50
 
 do_full_abstract = True
 def form_prompt(prompt_list):
