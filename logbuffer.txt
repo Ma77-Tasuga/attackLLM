@@ -2,8 +2,12 @@
 final result: TP=61140, TN=993624, FP=26341, FN=15905
 final matric: acc=0.9614898679136926, recall=0.7935622039068078, precision=0.6988946171168596, f1-score=0.7432259946756136
 
-# using label/feature map, 1;1 dataset, 50 ep, 20len prompt, T5-small, 180 token input, 10 token output, 0.2 eval-ratio (88735, 4) (22183, 4)
+# using label/feature map, 1:1 dataset, 50 ep, 20len prompt, T5-small, 180 token input, 10 token output, 0.2 eval-ratio (88735, 4) (22183, 4)
 final result: TP=46381, TN=1011349, FP=8616, FN=30664
 final matric: acc=0.9641935807330836, recall=0.6019988318515154, precision=0.8433369092859611, f1-score=0.7025188955029461
 
-#  0.2 eval-ratio (35492, 4) (8872, 4)
+# using label/feature map, 1:1 dataset, 50 ep, 50len prompt, T5-small, 450 token input, 10 token output, 0.2 eval-ratio (35492, 4) (8872, 4), CLLM
+final result: TP=23681, TN=406556, FP=1429, FN=7136
+final matric: acc=0.9804809458480135, recall=0.768439497679852, precision=0.9430904022301871, f1-score=0.8468539345933092
+
+# using label/feature map, 1:1 dataset, 50 ep, 50len prompt, T5-small, 450 token input, 10 token output, 0.2 eval-ratio (35492, 4) (8872, 4), S2SLM

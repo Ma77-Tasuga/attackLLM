@@ -142,7 +142,7 @@ if __name__ == "__main__":
     print(small_eval_dataset.shape)
 
     # 训练器配置
-    peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
+    peft_config = LoraConfig(task_type=TaskType.SEQ_2_SEQ_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
     model = get_peft_model(model, peft_config)
     model.print_trainable_parameters()
 

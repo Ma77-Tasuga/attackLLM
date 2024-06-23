@@ -67,11 +67,18 @@ if __name__ == '__main__':
     smaller_ratio = 1
     shards_size = 2000
 
-    model = AutoModelForSeq2SeqLM.from_pretrained("./T5-small")
-    lora_config = PeftConfig.from_pretrained("./output_lora_model/T5_map_50ep_50len_450ml_0622")
+    base_model_path = "./T5-small"
+    finetune_model_path = "./output_lora_model/T5_s2s_map_50ep_50len_450ml_0623"
 
-    model = PeftModel.from_pretrained(model, "./output_lora_model/T5_map_50ep_50len_450ml_0622")
-    tokenizer = AutoTokenizer.from_pretrained("./T5-small")
+    model = AutoModelForSeq2SeqLM.from_pretrained(base_model_path)
+    lora_config = PeftConfig.from_pretrained(finetune_model_path)
+
+    model = PeftModel.from_pretrained(model, finetune_model_path)
+    tokenizer = AutoTokenizer.from_pretrained(base_model_path)
+
+    print(f"base model is:{base_model_path}, fine tune model is:{finetune_model_path}.\n")
+
+
 
     training_args = TrainingArguments(
         output_dir="check_point",
@@ -152,14 +159,17 @@ if __name__ == '__main__':
     print(len(tokenized_dataset['labels']))
     num_data = len(tokenized_dataset['labels'])
     num_left = int(num_data%shards_size)
-    print('total loop:'+str(int(num_data/shards_size)))
+    total_loop = int(num_data/shards_size)
+    print('total loop:'+str(total_loop))
     TP = 0
     TN = 0
     FP = 0
     FN = 0
+    now_loop = 0
     for i in range(int(num_data/shards_size)):
         input_data = tokenized_dataset.select(range(shards_size*i,shards_size*(i+1)))
-
+        now_loop += 1
+        print(f'loop count: {now_loop} / {total_loop}')
         trainer = Trainer(
             model=model,  # 要微调的模型
             args=training_args,  # 训练参数

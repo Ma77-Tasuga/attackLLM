@@ -45,51 +45,70 @@ def tokenize_function(examples):
 
 if __name__ == "__main__":
     set_seed(42)
-    split_ratio = 0.2
-    smaller_retio = 1  # 1 use full dataset
+    benign_attack_ratio = 2
+    smaller_ratio = 0.1  # 1 use full eval dataset
 
     datasets_list = ["cadets", 'fivedirections', 'theia', 'trace']
     filename_prefix_attack = '_attack.json'
     filename_prefix_benign = '_benign.json'
     # chosed_dataset = 'cadets'
     folder_train = './DARPA_T3/dataset_json/train'
-
+    folder_eval = "./DARPA_T3/dataset_json/test"
     # assert chosed_dataset in datasets_list, 'unexpected dataset chosed \n'
 
-    data = []
-
+    data_train = []
+    data_eval = []
     for datasets_name in datasets_list:
-        file_path_attack = os.path.join(folder_train, datasets_name+filename_prefix_attack)
-        file_path_benign = os.path.join(folder_train, datasets_name+filename_prefix_benign)
-
-        with open(file_path_attack, 'r', encoding='utf-8') as fa:
+        train_file_path_attack = os.path.join(folder_train, datasets_name+filename_prefix_attack)
+        train_file_path_benign = os.path.join(folder_train, datasets_name+filename_prefix_benign)
+        eval_file_path_attack = os.path.join(folder_eval, datasets_name+filename_prefix_attack)
+        eval_file_path_benign = os.path.join(folder_eval, datasets_name+filename_prefix_benign)
+        with open(train_file_path_attack, 'r', encoding='utf-8') as fa:
             data_attack = json.load(fa)
             # print(len(data_attack))
 
-        with open(file_path_benign, 'r', encoding='utf-8') as fb:
+        with open(train_file_path_benign, 'r', encoding='utf-8') as fb:
             data_benign = json.load(fb)
             # print(len(data_benign))
+        if (benign_attack_ratio*len(data_attack)) <= len(data_benign):
+            data_benign_sampled = random.sample(data_benign, (benign_attack_ratio*len(data_attack)))
+        else:
+            print('data_attack > data_benign \n')
+            data_benign_sampled = data_benign
 
+        data_train += data_attack
+        data_train += data_benign_sampled
+
+        with open(eval_file_path_attack, 'r', encoding='utf-8') as fa:
+            data_attack = json.load(fa)
+            # print(len(data_attack))
+
+        with open(eval_file_path_benign, 'r', encoding='utf-8') as fb:
+            data_benign = json.load(fb)
+            # print(len(data_benign))
         if len(data_attack) <= len(data_benign):
             data_benign_sampled = random.sample(data_benign, len(data_attack))
         else:
             print('data_attack > data_benign \n')
             data_benign_sampled = data_benign
 
-        data += data_attack
-        data += data_benign_sampled
+        data_eval += data_attack
+        data_eval += data_benign_sampled
 
     # print(len(data))
 
-    dataset = Dataset.from_list(data)
+    dataset = Dataset.from_list(data_train)
     dataset = dataset.shuffle(seed=42)
+    dataset_eval = Dataset.from_list(data_eval)
+    dataset_eval = dataset_eval.shuffle(seed=42)
     # print(dataset[50:100])
-    data_size = int(dataset.shape[0] * smaller_retio)
-    test_size = int(data_size * split_ratio)
+    data_size = int(dataset_eval.shape[0] * smaller_ratio)
 
+    dataset_eval = dataset_eval.select(range(data_size))
     # test_dataset = dataset.select(indices=range(test_size))
     # train_dataset = dataset.select(indices=range(test_size, data_size))
 
+    print(f'train size:{dataset.shape}, eval size:{dataset_eval.shape}.\n')
     """
         训练模型
     """
@@ -122,27 +141,27 @@ if __name__ == "__main__":
         print("\nlet pad_token = eos_token \n")
         tokenizer.pad_token = tokenizer.eos_token
     #     tokenizer.pad_token_id = tokenizer.eos_token_id
-
+    print("maping train dataset.....\n")
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
+    print("mapping eval dataset.....\n")
+    tokenized_datasets_eval = dataset_eval.map(tokenize_function, batched=True)
 
     tokenized_datasets = tokenized_datasets.remove_columns(['prompt', 'response'])
     tokenized_datasets = tokenized_datasets.rename_column('target_ids', 'labels')
     tokenized_datasets = tokenized_datasets.rename_column('target_attention_mask', 'decoder_attention_mask')
 
+    tokenized_datasets_eval = tokenized_datasets_eval.remove_columns(['prompt', 'response'])
+    tokenized_datasets_eval = tokenized_datasets_eval.rename_column('target_ids', 'labels')
+    tokenized_datasets_eval = tokenized_datasets_eval.rename_column('target_attention_mask', 'decoder_attention_mask')
     # print(tokenized_datasets.shape)
     # print(tokenized_datasets.data[50:60])
     # print(tokenized_datasets['labels'][50:60])
     # print(tokenized_datasets['attention_mask'][50:60])
     # print(tokenized_datasets['decoder_attention_mask'][50:60])
 
-    small_train_dataset = tokenized_datasets.select(range(test_size, data_size))
-    small_eval_dataset = tokenized_datasets.select(range(test_size))
-    # print(small_train_dataset[50:100])
-    print(small_train_dataset.shape)
-    print(small_eval_dataset.shape)
 
     # 训练器配置
-    peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
+    peft_config = LoraConfig(task_type=TaskType.SEQ_2_SEQ_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
     model = get_peft_model(model, peft_config)
     model.print_trainable_parameters()
 
@@ -150,8 +169,8 @@ if __name__ == "__main__":
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=small_train_dataset,
-        eval_dataset=small_eval_dataset,
+        train_dataset=tokenized_datasets,
+        eval_dataset=tokenized_datasets_eval,
         # compute_metrics=compute_metrics,
     )
 
