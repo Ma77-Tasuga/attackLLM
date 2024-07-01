@@ -3,13 +3,13 @@ import os
 from datasets import Dataset
 from peft import PeftModel, PeftConfig
 from accelerate.utils import set_seed
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, Trainer ,Text2TextGenerationPipeline
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, Trainer ,Text2TextGenerationPipeline, AutoModelForCausalLM
 import torch
 
 
 def tokenize_function(examples):
     inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True,
-                       max_length=512)  #50:1100 30:600 20:400
+                       max_length=260)  #50:1100 30:600 20:400
 
     batch_size = len(examples["prompt"])
 
@@ -41,11 +41,11 @@ def compute_metrics(eval_pred):
 if __name__ == '__main__':
     set_seed(42)
 
-    model = AutoModelForSeq2SeqLM.from_pretrained("./T5-small")
-    lora_config = PeftConfig.from_pretrained("./output_lora_model/T5_ep10_097_0603")
+    model = AutoModelForCausalLM.from_pretrained("./TinyLlama-1.1B-intermediate-step-1431k-3T")
+    lora_config = PeftConfig.from_pretrained("./tmp_trainer")
 
-    model = PeftModel.from_pretrained(model,"./output_lora_model/T5_ep10_097_0603")
-    tokenizer = AutoTokenizer.from_pretrained("./T5-small")
+    model = PeftModel.from_pretrained(model,"./tmp_trainer")
+    tokenizer = AutoTokenizer.from_pretrained("./TinyLlama-1.1B-intermediate-step-1431k-3T")
 
     model = model.to("cuda")
     model.eval()
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     print("num of data_benign is: " + str(len(data_benign)))
     # print(data_attack[50:51])
     # print(data_benign[50:51])
-    prompt = data_benign[50]['prompt']
+    prompt = data_attack[53]['prompt']
     # prompt = prompt[:int(len(prompt)/2)]
     # data_size = int(dataset.shape[0] * smaller_retio)
     # test_size = int(data_size * split_ratio)
@@ -84,14 +84,14 @@ if __name__ == '__main__':
     if getattr(tokenizer, "pad_token_id") is None:
         print("\nlet pad_token = eos_token \n")
         tokenizer.pad_token = tokenizer.eos_token
-
-    inputs = tokenizer(prompt, return_tensors="pt", padding="max_length", truncation=True,
-                   max_length=512)
+    prompt = "question: "+ prompt+' answer: '
+    inputs = tokenizer(prompt, return_tensors="pt", padding=False, truncation=True,
+                   max_length=260)
     # print(inputs)
     #
-    outputs = model.generate(input_ids=inputs["input_ids"].to("cuda"), max_length = 10)
+    outputs = model.generate(input_ids=inputs["input_ids"].to("cuda"), max_length = 300)
     print(outputs)
-    print(tokenizer.batch_decode(outputs.detach().cpu().numpy(), skip_special_tokens=True)[0])
+    print(tokenizer.batch_decode(outputs.detach().cpu().numpy(), skip_special_tokens=False)[0])
 
     # trainer = Trainer(
     #     model=model,  # 要微调的模型

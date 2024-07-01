@@ -11,3 +11,9 @@ final result: TP=23681, TN=406556, FP=1429, FN=7136
 final matric: acc=0.9804809458480135, recall=0.768439497679852, precision=0.9430904022301871, f1-score=0.8468539345933092
 
 # using label/feature map, 1:1 dataset, 50 ep, 50len prompt, T5-small, 450 token input, 10 token output, 0.2 eval-ratio (35492, 4) (8872, 4), S2SLM
+final result: TP=25566, TN=404161, FP=3824, FN=5251
+final matric: acc=0.97931869043441, recall=0.8296070350780413, precision=0.8698877169105138, f1-score=0.8492700184363945
+
+# using label/feature map, 1:2 dataset, 50 ep, 50len prompt, T5-small, 450 token input, 10 token output, independent eval-ratio (66546, 2) (6163, 2), S2SLM
+final result: TP=24295, TN=406758, FP=1227, FN=6522
+final matric: acc=0.9823405545097789, recall=0.7883635655644612, precision=0.9519238304208134, f1-score=0.86245762260601

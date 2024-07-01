@@ -5,17 +5,21 @@ import numpy as np
 from datasets import Dataset
 from peft import PeftModel, PeftConfig
 from accelerate.utils import set_seed
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, Trainer ,Text2TextGenerationPipeline, TrainingArguments
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, Trainer ,Text2TextGenerationPipeline, TrainingArguments, AutoModelForCausalLM
 import torch
 from sklearn.metrics import accuracy_score
 
 
 def tokenize_function(examples):
-    inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True,
-                       max_length=450)  #50:1100 30:600 20:400
-    targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True,
-                        max_length=10)
-
+    prompt_list = []
+    for p in examples["prompt"]:
+        prompt_list.append("question: " + p + " answer: ")
+    inputs = tokenizer(prompt_list, return_tensors="pt", padding=False, truncation=True,
+                       max_length=260)  #50:1100 30:600 20:400
+    targets = tokenizer(examples["response"], return_tensors="pt", padding=True, truncation=True,
+                        max_length=60)
+    print(len(inputs["input_ids"]))
+    print(len(targets["input_ids"]))
     outputs = {
         "input_ids": inputs["input_ids"],
         "attention_mask": inputs["attention_mask"],
@@ -31,7 +35,7 @@ def compute_metrics(eval_pred):
     batch_size = len(labels)
     print(labels.shape)
     for i in range(batch_size):
-        if 3211 in labels[i]:
+        if 5337 in labels[i]:
             true_labels.append(1)
         else:
             true_labels.append(0)
@@ -39,7 +43,7 @@ def compute_metrics(eval_pred):
     predictions = np.argmax(logits[0], axis=-1)
 
     for i in range(batch_size):
-        if 3211 in predictions[i]: # 31144-benign 3211-attack
+        if 5337 in predictions[i]: # 3856,647-benign 5337-attack
             pred_labels.append(1)
         else:
             pred_labels.append(0)
@@ -67,10 +71,10 @@ if __name__ == '__main__':
     smaller_ratio = 1
     shards_size = 2000
 
-    base_model_path = "./T5-small"
-    finetune_model_path = "./output_lora_model/T5_map_s2s_12data_50ep_50len_450ml_0623"
+    base_model_path = "./TinyLlama-1.1B-intermediate-step-1431k-3T"
+    finetune_model_path = "./tmp_trainer"
 
-    model = AutoModelForSeq2SeqLM.from_pretrained(base_model_path)
+    model = AutoModelForCausalLM.from_pretrained(base_model_path)
     lora_config = PeftConfig.from_pretrained(finetune_model_path)
 
     model = PeftModel.from_pretrained(model, finetune_model_path)
