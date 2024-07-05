@@ -17,3 +17,12 @@ final matric: acc=0.97931869043441, recall=0.8296070350780413, precision=0.86988
 # using label/feature map, 1:2 dataset, 50 ep, 50len prompt, T5-small, 450 token input, 10 token output, independent eval-ratio (66546, 2) (6163, 2), S2SLM
 final result: TP=24295, TN=406758, FP=1227, FN=6522
 final matric: acc=0.9823405545097789, recall=0.7883635655644612, precision=0.9519238304208134, f1-score=0.86245762260601
+
+# multigraph test on cadets, using trace and theia to train, 20 prompt len.final result: TP=51001, TN=208965, FP=172497, FN=713
+final result: TP=51001, TN=208965, FP=172497, FN=713
+final matric: acc=0.6001394352411029, recall=0.9862126310090111, precision=0.22819443574439144, f1-score=0.3706306411057657
+
+# same as above, test on fivedirections
+final result: TP=22347, TN=297878, FP=133590, FN=38806
+final matric: acc=0.6500433396059039, recall=0.3654276977417298, precision=0.1433078743338656, f1-score=0.2058777465567276
+

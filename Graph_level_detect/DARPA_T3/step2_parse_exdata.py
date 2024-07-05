@@ -177,7 +177,7 @@ for path in path_list:
             f.close()
 
     else:
-        print("Do not hace that path!", file=sys.stderr)
+        print("Do not have that path!", file=sys.stderr)
 
 # os.system('cp ta1-theia-e3-official-1r.json.txt ./data/theia_train.txt')
 # os.system('cp ta1-theia-e3-official-6r.json.8.txt ./data/theia_test.txt')

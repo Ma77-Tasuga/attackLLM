@@ -6,7 +6,7 @@ data_list = ['cadets', 'fivedirections', 'theia', 'trace']
 check_num = 20000
 prompt_list_size = 50
 
-do_full_abstract = True
+do_full_abstract = False
 def form_prompt(prompt_list):
     prompt = ', '.join(prompt_list)
 
