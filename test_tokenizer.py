@@ -140,16 +140,37 @@ if __name__ == "__main__":
     # print('\n')
     # print(len(inputs['attention_mask'][0]))
     # print(inputs)
-    print("maping train dataset.....\n")
-    tokenized_datasets = dataset.map(tokenize_function, batched=True)
 
+    # print("maping train dataset.....\n")
+    # tokenized_datasets = dataset.map(tokenize_function, batched=True)
+    #
+    #
+    # tokenized_datasets = tokenized_datasets.remove_columns(['prompt', 'response'])
+    # tokenized_datasets = tokenized_datasets.rename_column('target_ids', 'labels')
+    # tokenized_datasets = tokenized_datasets.rename_column('target_attention_mask', 'decoder_attention_mask')
 
-    tokenized_datasets = tokenized_datasets.remove_columns(['prompt', 'response'])
-    tokenized_datasets = tokenized_datasets.rename_column('target_ids', 'labels')
-    tokenized_datasets = tokenized_datasets.rename_column('target_attention_mask', 'decoder_attention_mask')
+    # prompt = "question: "+dataset["prompt"][0] + " answer: "+dataset["response"][0]
+    prompt = 'question '+dataset["prompt"][0]
+    target = "answer: " + dataset["response"][0]
+    # prompt = prompt+" "+target
+    tokenizer.pad_token = tokenizer.unk_token
+    tokenizer.padding_side = 'left'
+    tokenized_datasets = tokenizer(prompt, return_tensors="pt", padding="max_length", truncation=True,
+                       max_length=940)
+    print(tokenized_datasets)
+    # print(tokenizer.decode(tokenized_datasets['input_ids'][0]))
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = 'right'
+    tokenized_target = tokenizer(target, return_tensors="pt", padding="max_length", truncation=True,
+                        max_length=10, add_special_tokens=False)
+    print(tokenized_target)
+    input = torch.cat((tokenized_datasets['input_ids'],tokenized_target['input_ids']), dim=1)
+    print(input)
+    print(tokenizer.decode(input[0]))
 
+    # print(input)
     # print(tokenized_datasets[10]['input_ids'][-8:])
-    print(tokenized_datasets['attention_mask'][100:105])
+    # print(tokenized_datasets['attention_mask'][100:105])
     # print(tokenized_datasets.shape)
     # print(tokenized_datasets.data[50:60])
     # print(tokenized_datasets['labels'][50:60])

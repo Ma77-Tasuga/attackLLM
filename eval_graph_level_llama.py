@@ -11,101 +11,48 @@ from sklearn.metrics import accuracy_score
 
 
 def tokenize_function(examples):
-    inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True,
-                       max_length=450)  #50:1100 30:600 20:400
-    targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True,
-                        max_length=10)
-
-    outputs = {
-        "input_ids": inputs["input_ids"],
-        "attention_mask": inputs["attention_mask"],
-        "target_ids": targets["input_ids"],
-        "target_attention_mask": targets["attention_mask"]
-    }
-
-    return outputs
-def tokenize_function_llama(examples):
-
     q_list = []
-    a_list = []
-    # for p,r in zip(examples["prompt"], examples["response"]):
-    #     QA_list.append("question: "+p+" answer: "+r)
-    #
-    # inputs = tokenizer(QA_list, return_tensors="pt", padding="max_length", truncation=True,
-    #                    max_length=260)
-    # targets = tokenizer(QA_list, return_tensors="pt", padding="max_length", truncation=True,
-    #                     max_length=260)
+    for p in examples["prompt"]:
+        q_list.append("question: "+p)
+    tokenizer.pad_token = tokenizer.unk_token
+    inputs = tokenizer(q_list, return_tensors="pt", padding="max_length", truncation=True,
+                       max_length=940)  #50:1100 30:600 20:400
+    # tokenizer.pad_token = tokenizer.eos_token
+    # targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True,
+    #                     max_length=10)
 
-    for p,r in zip(examples["prompt"], examples["response"]):
-        q_list.append("question: "+ p)
-        a_list.append(" answer: " + r)
+    return inputs
+# def tokenize_function_llama(examples):
+#     inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True,
+#                        max_length=450)  #50:1100 30:600 20:400
+#     targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True,
+#                         max_length=10)
+#
+#     outputs = {
+#         "input_ids": inputs["input_ids"],
+#         "attention_mask": inputs["attention_mask"],
+#         "target_ids": targets["input_ids"],
+#         "target_attention_mask": targets["attention_mask"]
+#     }
+#
+#     return outputs
 
-    tokenizer.pad_token = tokenizer.unk_token  # eos 2 bos 1 unk 0
-    inputs_prompt = tokenizer(q_list, return_tensors="pt", padding="max_length", truncation=True,
-                       max_length=940)
-    tokenizer.pad_token = tokenizer.eos_token  # eos 2 bos 1 unk 0
-    inputs_targets = tokenizer(a_list, return_tensors="pt", padding="max_length", truncation=True,
-                        max_length=940, add_special_tokens=False)
-    # qa_ids = []
-    # qa_mask = []
-    # for token_p_ids,token_p_mask,token_t_ids, token_t_mask in zip(inputs_prompt["input_ids"], inputs_prompt["attention_mask"],
-    #                                                             inputs_targets["input_ids"], inputs_targets["attention_mask"]):
-    #     qa_ids.append(torch.cat((token_p_ids,token_t_ids), dim=0))
-    #     qa_mask.append(torch.cat((token_p_mask,token_t_mask), dim=0))
+def eval_function(model, input_data):
+    model = model.to("cuda")
+    model.eval()
 
-    outputs = {
-        "input_ids": inputs_prompt["input_ids"],
-        "attention_mask": inputs_prompt["attention_mask"],
-        "target_ids": inputs_targets["input_ids"],
-        "target_attention_mask": inputs_targets["attention_mask"]
-    }
+    input_ids = torch.tensor(input_data['input_ids'])
+    attention_mask = torch.tensor(input_data['attention_mask'])
+    outputs = model.generate(input_ids=input_ids[:5].to('cuda'),attention_mask=attention_mask[:5].to('cuda'), max_length = 960)
+    print(outputs.shape)
+    print(outputs[:5])
+    print(tokenizer.batch_decode(outputs.detach().cpu().numpy(), skip_special_tokens=False)[0])
+    print("\n")
 
-    return outputs
 def compute_metrics(eval_pred):
     pred_labels = []
     true_labels = []
     logits, labels = eval_pred
-    batch_size = len(labels)
-    print(labels.shape)
-    for i in range(batch_size):
-        if 3211 in labels[i]:
-            true_labels.append(1)
-        else:
-            true_labels.append(0)
-
-    predictions = np.argmax(logits[0], axis=-1)
-
-    for i in range(batch_size):
-        if 3211 in predictions[i]: # 31144-benign 3211-attack
-            pred_labels.append(1)
-        else:
-            pred_labels.append(0)
-
-    y_true = np.array(true_labels)
-    y_pred = np.array(pred_labels)
-
-    TP = np.sum((y_true == 1) & (y_pred == 1))
-    TN = np.sum((y_true == 0) & (y_pred == 0))
-    FP = np.sum((y_true == 0) & (y_pred == 1))
-    FN = np.sum((y_true == 1) & (y_pred == 0))
-
-    acc = (TP + TN) / (TP + TN + FP + FN)
-
-    return {
-        'acc':acc,
-        "TP": TP,
-        'TN': TN,
-        'FP': FP,
-        'FN': FN
-    }
-
-def compute_metrics_llama(eval_pred):
-    pred_labels = []
-    true_labels = []
-    logits, labels = eval_pred
-    print(logits[1])
-    print("\n")
-    print(labels[1])
     batch_size = len(labels)
     print(labels.shape)
     for i in range(batch_size):
@@ -236,8 +183,7 @@ if __name__ == '__main__':
 
     # tokenized_attacks = dataset_attack.map(tokenize_function, batched=True)
     # tokenized_benigns = dataset_benign.map(tokenize_function, batched=True)
-    # tokenized_dataset = dataset_all.map(tokenize_function, batched=True)
-    tokenized_dataset = dataset_all.map(tokenize_function_llama, batched=True)
+    tokenized_dataset = dataset_all.map(tokenize_function, batched=True)
 
     # tokenized_attacks = tokenized_attacks.remove_columns(['prompt', 'response'])
     # tokenized_attacks = tokenized_attacks.rename_column('target_ids', 'labels')
@@ -246,15 +192,18 @@ if __name__ == '__main__':
     # tokenized_benigns = tokenized_benigns.rename_column('target_ids', 'labels')
     # tokenized_benigns = tokenized_benigns.rename_column('target_attention_mask', 'decoder_attention_mask')
 
-    tokenized_dataset = tokenized_dataset.remove_columns(['prompt', 'response'])
-    tokenized_dataset = tokenized_dataset.rename_column('target_ids', 'labels')
-    tokenized_dataset = tokenized_dataset.rename_column('target_attention_mask', 'decoder_attention_mask')
+    tokenized_dataset = tokenized_dataset.remove_columns(['prompt'])
+    # tokenized_dataset = tokenized_dataset.rename_column('target_ids', 'labels')
+    # tokenized_dataset = tokenized_dataset.rename_column('target_attention_mask', 'decoder_attention_mask')
 
 
+    # print(inputs['input_ids'][:10])
+    # print("\n")
+    # print(labels[:10])
 
     cnt = 0
-    print(len(tokenized_dataset['labels']))
-    num_data = len(tokenized_dataset['labels'])
+    print(len(tokenized_dataset['input_ids']))
+    num_data = len(tokenized_dataset['input_ids'])
     num_left = int(num_data%shards_size)
     total_loop = int(num_data/shards_size)
     print('total loop:'+str(total_loop))
@@ -265,6 +214,8 @@ if __name__ == '__main__':
     now_loop = 0
     for i in range(int(num_data/shards_size)):
         input_data = tokenized_dataset.select(range(shards_size*i,shards_size*(i+1)))
+        input_data = input_data.remove_columns(['attention_mask', 'decoder_attention_mask'])
+
         now_loop += 1
         print(f'loop count: {now_loop} / {total_loop}')
         trainer = Trainer(
@@ -272,7 +223,7 @@ if __name__ == '__main__':
             args=training_args,  # 训练参数
             # eval_dataset=tokenized_attacks,  # 验证数据集
             eval_dataset=input_data,
-            compute_metrics=compute_metrics_llama  # 计算评估指标的函数
+            compute_metrics=compute_metrics  # 计算评估指标的函数
             )
 
         result = trainer.evaluate()
@@ -283,15 +234,18 @@ if __name__ == '__main__':
         print(result)
 
     input_data = tokenized_dataset.select(range(num_data-num_left, num_data))
-    trainer = Trainer(
-        model=model,  # 要微调的模型
-        args=training_args,  # 训练参数
-        # eval_dataset=tokenized_attacks,  # 验证数据集
-        eval_dataset=input_data,
-        compute_metrics=compute_metrics_llama  # 计算评估指标的函数
-    )
 
-    result = trainer.evaluate()
+    eval_function(model, input_data)
+    # trainer = Trainer(
+    #     model=model,  # 要微调的模型
+    #     args=training_args,  # 训练参数
+    #     # eval_dataset=tokenized_attacks,  # 验证数据集
+    #     eval_dataset=input_data,
+    #     compute_metrics=compute_metrics,  # 计算评估指标的函数
+    #     generation_config="a"
+    # )
+
+    # result = trainer.evaluate()
     TP += int(result['eval_TP'])
     TN += int(result['eval_TN'])
     FP += int(result['eval_FP'])

@@ -16,26 +16,22 @@ from accelerate.utils import set_seed
 #     torch.manual_seed(seed)
 #     torch.cuda.manual_seed_all(seed)
 
+
 def tokenize_function_llama(examples):
 
     q_list = []
     a_list = []
-    # for p,r in zip(examples["prompt"], examples["response"]):
-    #     QA_list.append("question: "+p+" answer: "+r)
-    #
-    # inputs = tokenizer(QA_list, return_tensors="pt", padding="max_length", truncation=True,
-    #                    max_length=260)
-    # targets = tokenizer(QA_list, return_tensors="pt", padding="max_length", truncation=True,
-    #                     max_length=260)
 
     for p,r in zip(examples["prompt"], examples["response"]):
         q_list.append("question: "+ p)
-        a_list.append(" answer: " + r)
+        a_list.append("answer: " + r)
 
     tokenizer.pad_token = tokenizer.unk_token  # eos 2 bos 1 unk 0
+    tokenizer.padding_side = 'left'
     inputs_prompt = tokenizer(q_list, return_tensors="pt", padding="max_length", truncation=True,
                        max_length=940)
     tokenizer.pad_token = tokenizer.eos_token  # eos 2 bos 1 unk 0
+    tokenizer.padding_side='right'
     inputs_targets = tokenizer(a_list, return_tensors="pt", padding="max_length", truncation=True,
                         max_length=10, add_special_tokens=False)
     qa_ids = []
