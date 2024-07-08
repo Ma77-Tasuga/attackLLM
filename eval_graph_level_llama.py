@@ -1,6 +1,6 @@
 import json
 import os
-
+import time
 import numpy as np
 from datasets import Dataset
 from peft import PeftModel, PeftConfig
@@ -12,42 +12,116 @@ from sklearn.metrics import accuracy_score
 
 def tokenize_function(examples):
     q_list = []
+    a_list = []
     for p in examples["prompt"]:
         q_list.append("question: "+p)
+        a_list.append("answer:")
     tokenizer.pad_token = tokenizer.unk_token
+    tokenizer.padding_side = 'left'
     inputs = tokenizer(q_list, return_tensors="pt", padding="max_length", truncation=True,
                        max_length=940)  #50:1100 30:600 20:400
-    # tokenizer.pad_token = tokenizer.eos_token
-    # targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True,
-    #                     max_length=10)
-
-    return inputs
+    inputs_prefix = tokenizer(a_list, return_tensors="pt", add_special_tokens=False)
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "right"
+    targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True,
+                        max_length=10)
+    qa_ids = []
+    qa_mask = []
+    for token_p_ids,token_p_mask,token_t_ids, token_t_mask in zip(inputs["input_ids"], inputs["attention_mask"],
+                                                                inputs_prefix["input_ids"], inputs_prefix["attention_mask"]):
+        qa_ids.append(torch.cat((token_p_ids,token_t_ids), dim=0))
+        qa_mask.append(torch.cat((token_p_mask,token_t_mask), dim=0))
 # def tokenize_function_llama(examples):
 #     inputs = tokenizer(examples["prompt"], return_tensors="pt", padding="max_length", truncation=True,
 #                        max_length=450)  #50:1100 30:600 20:400
 #     targets = tokenizer(examples["response"], return_tensors="pt", padding="max_length", truncation=True,
 #                         max_length=10)
 #
-#     outputs = {
-#         "input_ids": inputs["input_ids"],
-#         "attention_mask": inputs["attention_mask"],
-#         "target_ids": targets["input_ids"],
-#         "target_attention_mask": targets["attention_mask"]
-#     }
-#
-#     return outputs
+    outputs = {
+        "input_ids": qa_ids,
+        "attention_mask": qa_mask,
+        "target_ids": targets["input_ids"],
+        "target_attention_mask": targets["attention_mask"]
+    }
+
+    return outputs
 
 def eval_function(model, input_data):
-    model = model.to("cuda")
-    model.eval()
+    label_list = []
+    logit_list = []
 
-    input_ids = torch.tensor(input_data['input_ids'])
-    attention_mask = torch.tensor(input_data['attention_mask'])
-    outputs = model.generate(input_ids=input_ids[:5].to('cuda'),attention_mask=attention_mask[:5].to('cuda'), max_length = 960)
-    print(outputs.shape)
-    print(outputs[:5])
-    print(tokenizer.batch_decode(outputs.detach().cpu().numpy(), skip_special_tokens=False)[0])
-    print("\n")
+    batch = 45
+
+    model = model.to("cuda:2")
+    model.eval()
+    input_ids_all = torch.tensor(input_data['input_ids'])
+    attention_mask_all = torch.tensor(input_data['attention_mask'])
+    labels = input_data['labels']
+    print(input_ids_all.shape)
+    shard_size = input_ids_all.shape[0]
+    # print(shard_size)
+    cnt = int(shard_size/batch)
+    shard_left = int(shard_size%batch)
+    for i in range(cnt):
+        input_ids = input_ids_all[int(batch*i):int(batch*(i+1))].to("cuda:2")
+        attention_mask = attention_mask_all[int(batch*i):int(batch*(i+1))].to("cuda:2")
+        with torch.no_grad():
+            outputs = model.generate(input_ids=input_ids,
+                                     attention_mask=attention_mask,
+                                     max_length=950,
+                                     num_return_sequences=1)
+        # print(outputs.shape)
+        # print(outputs[4])
+        # print(tokenizer.decode(outputs[4].detach().cpu().numpy(), skip_special_tokens=False))
+        # print("\n")
+        for output in outputs:
+            logit = output[-10:]
+            if 5337 in logit:
+                logit_list.append(1)
+            else:
+                logit_list.append(0)
+    input_ids = input_ids_all[shard_size-shard_left:shard_size].to("cuda:2")
+    attention_mask = attention_mask_all[shard_size-shard_left:shard_size].to("cuda:2")
+    with torch.no_grad():
+        outputs = model.generate(input_ids=input_ids,
+                                attention_mask=attention_mask,
+                                max_length=950,
+                                num_return_sequences=1)
+    # print(outputs.shape)
+    for output in outputs:
+        logit = output[-10:]
+        if 5337 in logit:
+            logit_list.append(1)
+        else:
+            logit_list.append(0)
+
+    for label in labels:
+        if 5337 in label:
+            label_list.append(1)
+        else:
+            label_list.append(0)
+
+    # print(len(logit_list))
+    # print(len(label_list))
+
+    y_true = np.array(label_list)
+    y_pred = np.array(logit_list)
+
+    TP = np.sum((y_true == 1) & (y_pred == 1))
+    TN = np.sum((y_true == 0) & (y_pred == 0))
+    FP = np.sum((y_true == 0) & (y_pred == 1))
+    FN = np.sum((y_true == 1) & (y_pred == 0))
+
+    acc = (TP + TN) / (TP + TN + FP + FN)
+
+    return {
+        'acc': acc,
+        "eval_TP": TP,
+        'eval_TN': TN,
+        'eval_FP': FP,
+        'eval_FN': FN
+    }
+
 
 def compute_metrics(eval_pred):
     pred_labels = []
@@ -93,7 +167,7 @@ if __name__ == '__main__':
     shards_size = 2000
 
     base_model_path = "./TinyLlama-1.1B-intermediate-step-1431k-3T"
-    finetune_model_path = "./output_lora_model/Llama_0705_50len_10ep_trace_theia"
+    finetune_model_path = "./output_lora_model/Llama_0708_leftpadding_lowlr"
 
     # model = AutoModelForSeq2SeqLM.from_pretrained(base_model_path)
     model = AutoModelForCausalLM.from_pretrained(base_model_path)
@@ -164,7 +238,7 @@ if __name__ == '__main__':
     # dataset_benign = dataset_benign.select(range(int(len(dataset_benign)*smaller_ratio)))
 
     data_all = data_attack_all+data_benign_all
-    data_all = data_all[:1000]
+    # data_all = data_all[:1000]
     dataset_all = Dataset.from_list(data_all).shuffle(seed=42)
     dataset_all = dataset_all.select(range(int(len(dataset_all)*smaller_ratio)))
     print("dataset shape is: ",dataset_all.shape)
@@ -192,9 +266,9 @@ if __name__ == '__main__':
     # tokenized_benigns = tokenized_benigns.rename_column('target_ids', 'labels')
     # tokenized_benigns = tokenized_benigns.rename_column('target_attention_mask', 'decoder_attention_mask')
 
-    tokenized_dataset = tokenized_dataset.remove_columns(['prompt'])
-    # tokenized_dataset = tokenized_dataset.rename_column('target_ids', 'labels')
-    # tokenized_dataset = tokenized_dataset.rename_column('target_attention_mask', 'decoder_attention_mask')
+    tokenized_dataset = tokenized_dataset.remove_columns(['prompt', 'response'])
+    tokenized_dataset = tokenized_dataset.rename_column('target_ids', 'labels')
+    tokenized_dataset = tokenized_dataset.rename_column('target_attention_mask', 'decoder_attention_mask')
 
 
     # print(inputs['input_ids'][:10])
@@ -213,29 +287,34 @@ if __name__ == '__main__':
     FN = 0
     now_loop = 0
     for i in range(int(num_data/shards_size)):
+        start_time = time.time()
         input_data = tokenized_dataset.select(range(shards_size*i,shards_size*(i+1)))
-        input_data = input_data.remove_columns(['attention_mask', 'decoder_attention_mask'])
+        # input_data = input_data.remove_columns(['attention_mask', 'decoder_attention_mask'])
 
         now_loop += 1
         print(f'loop count: {now_loop} / {total_loop}')
-        trainer = Trainer(
-            model=model,  # 要微调的模型
-            args=training_args,  # 训练参数
-            # eval_dataset=tokenized_attacks,  # 验证数据集
-            eval_dataset=input_data,
-            compute_metrics=compute_metrics  # 计算评估指标的函数
-            )
 
-        result = trainer.evaluate()
+        result = eval_function(model, input_data)
+
+        # trainer = Trainer(
+        #     model=model,  # 要微调的模型
+        #     args=training_args,  # 训练参数
+        #     # eval_dataset=tokenized_attacks,  # 验证数据集
+        #     eval_dataset=input_data,
+        #     compute_metrics=compute_metrics  # 计算评估指标的函数
+        #     )
+        #
+        # result = trainer.evaluate()
         TP += int(result['eval_TP'])
         TN += int(result['eval_TN'])
         FP += int(result['eval_FP'])
         FN += int(result['eval_FN'])
         print(result)
-
+        end_time = time.time()
+        print(f'using time: {end_time-start_time:.2f} seconds')
     input_data = tokenized_dataset.select(range(num_data-num_left, num_data))
 
-    eval_function(model, input_data)
+    result = eval_function(model, input_data)
     # trainer = Trainer(
     #     model=model,  # 要微调的模型
     #     args=training_args,  # 训练参数

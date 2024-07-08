@@ -17,26 +17,21 @@ import torch
 #     torch.cuda.manual_seed_all(seed)
 
 
-def tokenize_function(examples):
+def tokenize_function_llama(examples):
 
     q_list = []
     a_list = []
-    # for p,r in zip(examples["prompt"], examples["response"]):
-    #     QA_list.append("question: "+p+" answer: "+r)
-    #
-    # inputs = tokenizer(QA_list, return_tensors="pt", padding="max_length", truncation=True,
-    #                    max_length=260)
-    # targets = tokenizer(QA_list, return_tensors="pt", padding="max_length", truncation=True,
-    #                     max_length=260)
 
     for p,r in zip(examples["prompt"], examples["response"]):
         q_list.append("question: "+ p)
-        a_list.append(" answer: " + r)
+        a_list.append("answer: " + r)
 
     tokenizer.pad_token = tokenizer.unk_token  # eos 2 bos 1 unk 0
+    tokenizer.padding_side = 'left'
     inputs_prompt = tokenizer(q_list, return_tensors="pt", padding="max_length", truncation=True,
                        max_length=940)
     tokenizer.pad_token = tokenizer.eos_token  # eos 2 bos 1 unk 0
+    tokenizer.padding_side='right'
     inputs_targets = tokenizer(a_list, return_tensors="pt", padding="max_length", truncation=True,
                         max_length=10, add_special_tokens=False)
     qa_ids = []
@@ -54,16 +49,6 @@ def tokenize_function(examples):
     }
 
     return outputs
-
-
-# def compute_metrics(eval_pred):
-#     print('-----------------------\n')
-#     print(eval_pred)
-#     logits, labels = eval_pred
-#     print(logits)
-#     print(labels)
-#     predictions = np.argmax(logits, axis=-1)
-#     return metric.compute(predictions=predictions, references=labels)
 
 
 if __name__ == "__main__":
@@ -114,7 +99,7 @@ if __name__ == "__main__":
     training_args = TrainingArguments(output_dir="tmp_trainer",
                                       evaluation_strategy="epoch",
                                       num_train_epochs=10,
-                                      per_device_train_batch_size=8,
+                                      per_device_train_batch_size=2,
                                       # per_device_eval_batch_size=1,
                                       learning_rate=1e-03,
                                       )
@@ -142,31 +127,34 @@ if __name__ == "__main__":
     # print(inputs)
 
     # print("maping train dataset.....\n")
-    # tokenized_datasets = dataset.map(tokenize_function, batched=True)
-    #
+    # tokenized_datasets = dataset.map(tokenize_function_llama, batched=True)
+    # print(tokenized_datasets["input_ids"][0])
+    # print(tokenized_datasets["attention_mask"][0])
+    # print(tokenizer.decode(tokenized_datasets['input_ids'][0]))
+
     #
     # tokenized_datasets = tokenized_datasets.remove_columns(['prompt', 'response'])
     # tokenized_datasets = tokenized_datasets.rename_column('target_ids', 'labels')
     # tokenized_datasets = tokenized_datasets.rename_column('target_attention_mask', 'decoder_attention_mask')
 
-    # prompt = "question: "+dataset["prompt"][0] + " answer: "+dataset["response"][0]
-    prompt = 'question '+dataset["prompt"][0]
-    target = "answer: " + dataset["response"][0]
+    prompt = "question: "+dataset["prompt"][0] + " answer: "+dataset["response"][0]
+    # prompt = 'question '+dataset["prompt"][0]
+    # target = "answer: " + dataset["response"][0]
     # prompt = prompt+" "+target
     tokenizer.pad_token = tokenizer.unk_token
     tokenizer.padding_side = 'left'
     tokenized_datasets = tokenizer(prompt, return_tensors="pt", padding="max_length", truncation=True,
-                       max_length=940)
+                       max_length=950)
     print(tokenized_datasets)
-    # print(tokenizer.decode(tokenized_datasets['input_ids'][0]))
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = 'right'
-    tokenized_target = tokenizer(target, return_tensors="pt", padding="max_length", truncation=True,
-                        max_length=10, add_special_tokens=False)
-    print(tokenized_target)
-    input = torch.cat((tokenized_datasets['input_ids'],tokenized_target['input_ids']), dim=1)
-    print(input)
-    print(tokenizer.decode(input[0]))
+    print(tokenizer.decode(tokenized_datasets['input_ids'][0]))
+    # tokenizer.pad_token = tokenizer.eos_token
+    # tokenizer.padding_side = 'right'
+    # tokenized_target = tokenizer(target, return_tensors="pt", padding="max_length", truncation=True,
+    #                     max_length=10, add_special_tokens=False)
+    # print(tokenized_target)
+    # input = torch.cat((tokenized_datasets['input_ids'],tokenized_target['input_ids']), dim=1)
+    # print(input)
+    # print(tokenizer.decode(input[0]))
 
     # print(input)
     # print(tokenized_datasets[10]['input_ids'][-8:])

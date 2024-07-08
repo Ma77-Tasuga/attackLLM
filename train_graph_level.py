@@ -200,7 +200,7 @@ if __name__ == "__main__":
                                       num_train_epochs=10,
                                       per_device_train_batch_size=2,
                                       # per_device_eval_batch_size=1,
-                                      learning_rate=1e-03,
+                                      learning_rate=1e-04,
                                       )
 
 
