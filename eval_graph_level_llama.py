@@ -123,43 +123,43 @@ def eval_function(model, input_data):
     }
 
 
-def compute_metrics(eval_pred):
-    pred_labels = []
-    true_labels = []
-    logits, labels = eval_pred
-    batch_size = len(labels)
-    print(labels.shape)
-    for i in range(batch_size):
-        if 3211 in labels[i]:
-            true_labels.append(1)
-        else:
-            true_labels.append(0)
-
-    predictions = np.argmax(logits[0], axis=-1)
-
-    for i in range(batch_size):
-        if 3211 in predictions[i]: # 31144-benign 3211-attack
-            pred_labels.append(1)
-        else:
-            pred_labels.append(0)
-
-    y_true = np.array(true_labels)
-    y_pred = np.array(pred_labels)
-
-    TP = np.sum((y_true == 1) & (y_pred == 1))
-    TN = np.sum((y_true == 0) & (y_pred == 0))
-    FP = np.sum((y_true == 0) & (y_pred == 1))
-    FN = np.sum((y_true == 1) & (y_pred == 0))
-
-    acc = (TP + TN) / (TP + TN + FP + FN)
-
-    return {
-        'acc':acc,
-        "TP": TP,
-        'TN': TN,
-        'FP': FP,
-        'FN': FN
-    }
+# def compute_metrics(eval_pred):
+#     pred_labels = []
+#     true_labels = []
+#     logits, labels = eval_pred
+#     batch_size = len(labels)
+#     print(labels.shape)
+#     for i in range(batch_size):
+#         if 3211 in labels[i]:
+#             true_labels.append(1)
+#         else:
+#             true_labels.append(0)
+#
+#     predictions = np.argmax(logits[0], axis=-1)
+#
+#     for i in range(batch_size):
+#         if 3211 in predictions[i]: # 31144-benign 3211-attack
+#             pred_labels.append(1)
+#         else:
+#             pred_labels.append(0)
+#
+#     y_true = np.array(true_labels)
+#     y_pred = np.array(pred_labels)
+#
+#     TP = np.sum((y_true == 1) & (y_pred == 1))
+#     TN = np.sum((y_true == 0) & (y_pred == 0))
+#     FP = np.sum((y_true == 0) & (y_pred == 1))
+#     FN = np.sum((y_true == 1) & (y_pred == 0))
+#
+#     acc = (TP + TN) / (TP + TN + FP + FN)
+#
+#     return {
+#         'acc':acc,
+#         "TP": TP,
+#         'TN': TN,
+#         'FP': FP,
+#         'FN': FN
+#     }
 
 if __name__ == '__main__':
     set_seed(42)
@@ -189,7 +189,7 @@ if __name__ == '__main__':
         learning_rate=1e-03,
     )
 
-    datasets_list = ["fivedirections"]
+    datasets_list = ["cadets"]
     folder_test = './DARPA_T3/dataset_json/test'
     folder_train = './DARPA_T3/dataset_json/train'
 
